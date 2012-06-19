@@ -171,15 +171,43 @@ function _buildUrl(theUrl, params)
 
 var _proxyRequest = function(protocol, options)
 {
-  // If process.env['HTTP_PROXY'] is set, make sure path and
-  // the header Host are set to target url.
-  // HTTP and HTTPS traffic are sent to the same proxy server. 
-  // Example: `export HTTP_PROXY=http://localhost:8000`
+  /* 
+  If process.env['HTTP_PROXY'] or process.env['HTTPS_PROXY'] is set,
+  make sure path and the header Host are set to target url.
 
+  If only process.env['HTTP_PROXY'] is set, use it for both HTTP and
+  HTTPS traffic.
+
+  Explicit Proxies Example:
+      export HTTP_PROXY=http://localhost:8080
+      export HTTPS_PROXY=http://localhost:8443
+
+  HTTP and HTTPS traffic are sent to the same proxy server Example: 
+      export HTTP_PROXY=http://localhost:8000
+  */
+  var targetHost = options.host;
+  if (!targetHost) return;
+
+  if ('https:' === protocol && !! process.env['HTTPS_PROXY']) {
+    var proxy = url.parse(process.env['HTTPS_PROXY']);
+    if (proxy.hostname && proxy.port) {
+
+      if (! options.headers) options.headers = {};
+
+      options.host = proxy.hostname;
+      options.port = proxy.port;
+      options.path = 'https://' + targetHost + options.path;
+      options.headers['Host'] = targetHost;
+      // This request was https, we're done.
+      return;
+    }
+  }
+
+  // Either http or https (if no HTTPS_PROXY present)
   if (!! process.env['HTTP_PROXY']) {
     var proxy = url.parse(process.env['HTTP_PROXY']);
     if (proxy.hostname && proxy.port) {
-      var targetHost = options.host;
+
       if (! options.headers) options.headers = {};
 
       options.host = proxy.hostname;
@@ -188,6 +216,7 @@ var _proxyRequest = function(protocol, options)
       options.headers['Host'] = targetHost;
     }
   }
+  return;
 }
 
 function _get(getUrl, params, callback, redirects)
