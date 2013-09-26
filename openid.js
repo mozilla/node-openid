@@ -1461,9 +1461,18 @@ openid.AttributeExchange.prototype.fillResult = function(params, result)
   var regex = new RegExp('^openid\\.' + extension + '\\.(value|type)\\.(\\w+)$');
   var aliases = {};
   var values = {};
+  // Prevent MITM, only fill results with signed attributes
+  var signed = [];
+  if (params['openid.signed'] && typeof params['openid.signed'] == 'string') {
+    signed = params['openid.signed'].split(',');
+  }
   for (var k in params)
   {
     if (!params.hasOwnProperty(k)) { continue; }
+    if (k.indexOf('openid.') !== 0 ||
+        signed.indexOf(k.substring('openid.'.length)) === -1) {
+      continue;
+    }
     var matches = k.match(regex);
     if (!matches)
     {
